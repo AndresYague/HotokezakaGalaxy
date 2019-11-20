@@ -1,0 +1,3 @@
+# Ignore .in and .out files
+*.in
+*.out
