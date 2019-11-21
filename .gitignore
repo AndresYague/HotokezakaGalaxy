@@ -1,3 +1,6 @@
 # Ignore .in and .out files
 *.in
 *.out
+
+# Ignore the "tags" file
+tags

@@ -101,7 +101,7 @@ def main():
     
     # Read input file
     inputArgs = {}
-    with open("inputToy.in", "r") as fread:
+    with open(inFile, "r") as fread:
         for line in fread:
             lnlst = line.split()
             
@@ -114,14 +114,24 @@ def main():
             inputArgs[key] = val
     
     # Check at least correct number of arguments
-    if len(inputArgs) < 9:
+    if len(inputArgs) < 10:
         s = 'File "{}" has an incorrect number of entries, '.format(inFile)
         s += 'please use "{}" as a template'.format(inExample)
         print(s)
         return 1
     
+    # Calculate the solar circumference
+    circumf = inputArgs["rSun"]*2*np.pi
     
-    r0 = inputArgs["r0"]       # Present-day rate of events per Myr
+    # Calculate the simulation fractional mass by approximating:
+    # dM = dr*rsun*exp(-rsun/rd)/(rd*rd)
+    rScaleSun = inputArgs["rSun"]/inputArgs["rd"]
+    
+    fraction = np.exp(-rScaleSun)*rScaleSun
+    fraction *= inputArgs["width"]/inputArgs["rd"]
+    
+    # Get the rate
+    r0 = inputArgs["r0"]*fraction
     rate = rateFunction(r0, 5*r0, inputArgs["time"])
     
     # Set tau (in Myr)
@@ -134,16 +144,19 @@ def main():
     simul = SimulationObj(alpha = inputArgs["alpha"],
                           vt = inputArgs["vt"],
                           hscale = inputArgs["hscale"],
-                          circumf = inputArgs["circumf"],
+                          circumf = circumf,
                           width = inputArgs["width"],
                           time = inputArgs["time"])
     
     simulTime, simulOutpt = simul.runSimulation(tau, rate, sampleDt)
     
     # Plot results
-    plt.plot(simulTime, simulOutpt)
-    plt.xlim([2000, inputArgs["time"]])
-    plt.ylim([1e0, 1e3])
+    lowTime = 2000
+    for ii in range(len(simulTime)):
+        if simulTime[ii] >= lowTime:
+            break
+    
+    plt.plot(simulTime[ii:], simulOutpt[ii:])
     plt.yscale("log")
     
     plt.xlabel("Time (Myr)")
