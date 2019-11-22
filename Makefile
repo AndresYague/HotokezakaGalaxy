@@ -10,13 +10,13 @@ FC = mpifort
 # Flags.
  
 # Optimization flags.
-FFLAGS = -march=native -O3
-MODFLAGS = -c -march=native -O3
+FFLAGS = -march=native -O2
+MODFLAGS = -c -march=native -O2
 
 # Profile flags.
 ifeq ($(mode), p)
-    FFLAGS = -march=native -O3 -g
-    MODFLAGS = -c -march=native -O3 -g
+    FFLAGS = -march=native -O2 -g
+    MODFLAGS = -c -march=native -O2 -g
 endif
 
 # Debug flags.

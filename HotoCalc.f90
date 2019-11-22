@@ -149,6 +149,7 @@ PROGRAM HotoCalc
     WRITE(uni, *)
     
     ! Do one separate run for each tau
+    abundArray = 0.D0
     DO ii = 1, nTau
         WRITE(uni, *) "#", taus(ii)
         
@@ -206,8 +207,7 @@ SUBROUTINE decayingAbund(abundArray, tEvents, dEvents, tArray, tau, &
     DOUBLE PRECISION::prodFactor(:), diffCoef, hscale
     
     ! Local
-    DOUBLE PRECISION, ALLOCATABLE::dt(:), r2(:)
-    DOUBLE PRECISION::invTau, totSum, factor
+    DOUBLE PRECISION::invTau, totSum, factor, dt, r2
     INTEGER::ii, jj, tLen, iiEvent, lenEvent
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF DECLARATIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -219,38 +219,30 @@ SUBROUTINE decayingAbund(abundArray, tEvents, dEvents, tArray, tau, &
     tLen = SIZE(tArray)
     lenEvent = SIZE(tEvents)
     
-    ! Allocate arrays
-    ALLOCATE(dt(lenEvent), r2(lenEvent))
-    
     ! Now calculate the values for all points
-    iiEvent = 1
-    DO ii = 1, tLen
-        ! Get latest event
-        DO WHILE (tEvents(iiEvent + 1).LT.tArray(ii))
-            iiEvent = iiEvent + 1
-            
-            ! Check that we don't go over the array size
-            IF (iiEvent.GT.lenEvent - 1) THEN
-                iiEvent = lenEvent
-                EXIT
-            END IF
+    ii = 1
+    DO iiEvent = 1, lenEvent
+        ! Get the next measuring point
+        DO WHILE ((ii.LT.tLen).AND.(tArray(ii).LT.tEvents(iiEvent)))
+            ii = ii + 1
         END DO
         
-        ! Calculate dt and r2
-        dt(1:iiEvent) = tArray(ii) - tEvents(1:iiEvent)
-        r2(1:iiEvent) = diffCoef*dt(1:iiEvent)
-        
-        factor = 1.D0; totSum = 0.D0
-        DO jj = 1, iiEvent
-            factor = DEXP(-dEvents(jj)**2/(4*r2(jj)) - dt(jj)*invTau)
-            factor = factor/MIN((4*r2(jj))**1.5, 8*hscale*r2(jj))
+        ! Now apply to every point in the future
+        DO jj = ii, tLen
+            ! Calculate dt and r2
+            dt = tArray(jj) - tEvents(iiEvent)
+            r2 = diffCoef*dt
             
-            totSum = totSum + prodFactor(jj)*factor
+            ! Get the factor
+            factor = DEXP(-dEvents(iiEvent)**2/(4*r2) - dt*invTau)
+            factor = factor/MIN((4*r2)**1.5, 8*hscale*r2)
+            
+            ! Check if the factor is too small
+            IF (factor.LT.1.D-100) EXIT
+            
+            abundArray(jj) = abundArray(jj) + prodFactor(iiEvent)*factor
         END DO
-        abundArray(ii) = totSum
     END DO
-    
-    DEALLOCATE(dt, r2)
     
 END SUBROUTINE decayingAbund
 
