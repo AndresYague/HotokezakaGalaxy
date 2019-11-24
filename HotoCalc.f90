@@ -67,7 +67,7 @@ PROGRAM HotoCalc
     ALLOCATE(tEvents(lenEvent, redNEvents))
     ALLOCATE(dEvents(lenEvent, redNEvents))
     
-    ! Now read the information
+    ! Read times
     jj = 1
     DO ii = 1, nEvents
         IF (rank.EQ.MOD(ii - 1, nProc)) THEN
@@ -78,6 +78,7 @@ PROGRAM HotoCalc
         END IF
     END DO
     
+    ! Read distances
     jj = 1
     DO ii = 1, nEvents
         IF (rank.EQ.MOD(ii - 1, nProc)) THEN
@@ -88,11 +89,7 @@ PROGRAM HotoCalc
         END IF
     END DO
     
-    CLOSE(UNIT = uni)
-    
     ! Now read the prodFactor
-    OPEN(UNIT = uni, FILE = "input/prodFactor.in")
-    
     READ(uni, *) lenFactor, nFactor
     
     ! If there is only one production factor, then we fill the array with that
@@ -114,7 +111,7 @@ PROGRAM HotoCalc
     ! Allocate prodFactor with the reduced size redNEvents
     ALLOCATE(prodFactor(lenEvent, redNEvents))
     
-    ! Now read the information
+    ! Read the information on the prodFactor
     IF (lenFactor.EQ.1) THEN
         prodFactor = valFactor
     ELSE

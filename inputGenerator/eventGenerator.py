@@ -133,12 +133,19 @@ def main():
     with open(fileName, "w") as fwrite:
         fwrite.write("{} {} {}\n".format(len(times), len(times[0]),
                                          inputArgs["hscale"]))
+        
+        # Write times
         for timeArr in times:
             fwrite.write(" ".join([str(x) for x in timeArr]))
             fwrite.write("\n")
+        
+        # Write distances
         for distArr in distances:
             fwrite.write(" ".join([str(x) for x in distArr]))
             fwrite.write("\n")
+        
+        # Write the production factors
+        fwrite.write("{} {}\n{}".format(1, 1, 1))
     
     # Create a suitable tArray.in for this simulation
     step = 10
