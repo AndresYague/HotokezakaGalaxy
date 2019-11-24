@@ -47,13 +47,28 @@ class EventsObj():
         tt = 0
         times = [[] for x in range(nRuns)]
         distances = [[] for x in range(nRuns)]
-        while tt <= self.simulationTime:
-            nEvents = int(np.round(rateFunc(tt)*sampleDt))
+        tempSampleDt = sampleDt
+        while tt < self.simulationTime:
+            nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
+            
+            # Check that the number of events changes meaningfully
+            tempSampleDt = sampleDt
+            while tt + tempSampleDt <= self.simulationTime:
+                nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
+                futureNEvents = int(np.round(rateFunc(tt +
+                                                tempSampleDt)*tempSampleDt))
+                if nEvents != futureNEvents:
+                    break
+                tempSampleDt *= 10
+            
+            if tt + tempSampleDt > self.simulationTime:
+                tempSampleDt = self.simulationTime - tt
+                nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
             
             # Get the times
             times = np.append(times,
-                    np.sort(sampleDt*np.random.random((nRuns, nEvents)) + tt),
-                    axis = 1)
+                    np.sort(tempSampleDt*np.random.random((nRuns, nEvents)) +
+                             tt), axis = 1)
             
             # Get positions
             xx = self.circumf*np.random.random((nRuns, nEvents)) - 0.5*self.circumf
@@ -64,7 +79,7 @@ class EventsObj():
             distances = np.append(distances, np.sqrt(xx**2 + yy**2 + zz**2),
                     axis = 1)
             
-            tt += sampleDt
+            tt += tempSampleDt
         
         return times, distances
     

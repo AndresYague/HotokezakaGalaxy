@@ -53,11 +53,23 @@ class SimulationObj():
         # For each Myr, produce R events randomly distributed in
         # said Myr:
         tt = 0; times = []; distances = []
+        tempSampleDt = sampleDt
         while tt <= self.timeMyr:
-            nEvents = int(np.round(rateFunc(tt)*sampleDt))
+            nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
+            
+            # Check that the number of events changes meaningfully
+            tempSampleDt = sampleDt
+            while tt + tempSampleDt < self.timeMyr:
+                nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
+                futureNEvents = int(np.round(rateFunc(tt +
+                                                 tempSampleDt)*tempSampleDt))
+                if nEvents != futureNEvents:
+                    break
+                tempSampleDt *= 10
             
             # Get the times
-            times = np.append(times, np.sort(sampleDt*np.random.random(nEvents)) + tt)
+            times = np.append(times,
+                    np.sort(tempSampleDt*np.random.random(nEvents)) + tt)
             
             # Get positions
             xx = self.circumf*np.random.random(nEvents) - 0.5*self.circumf
@@ -67,7 +79,7 @@ class SimulationObj():
             # Calculate the distances from origin
             distances = np.append(distances, np.sqrt(xx**2 + yy**2 + zz**2))
             
-            tt += sampleDt
+            tt += tempSampleDt
         
         jj = 0
         # Update all values
@@ -137,7 +149,7 @@ def main():
     # Set tau (in Myr)
     tau = inputArgs["tau"]
     
-    # Set number of runs and sample Dt (in Myr)
+    # Set sample Dt (in Myr)
     sampleDt = inputArgs["sampleDt"]
     
     # Initialize and run simulation

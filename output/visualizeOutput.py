@@ -5,19 +5,37 @@ import numpy as np
 def main():
     if len(sys.argv) < 2:
         print("Use: python3 {} <outputFile> [outputFile2]".format(sys.argv[0]))
+        s = "When the second output file is included, the ratio between the"
+        s += " two solutions is shown."
+        print(s)
         return 1
     
     # Get input file
     inputFile = sys.argv[1]
+    if len(sys.argv) > 2:
+        inputFile2 = sys.argv[2]
+    else:
+        inputFile2 = None
     
     # Read the runs
     with open(inputFile, "r") as fread:
         tArray = [float(x) for x in fread.readline().split()]
         
+        if inputFile2 is not None:
+            fread2 = open(inputFile2, "r")
+        
         # Read each run
         results = []
         for line in fread:
-            results.append([float(x) for x in line.split()])
+            if inputFile2 is not None:
+                line2 = fread2.readline().split()
+                results.append([float(x)/(1e-100 + float(y)) for x, y in
+                                    zip(line.split(), line2)])
+            else:
+                results.append([float(x) for x in line.split()])
+        
+        if inputFile2 is not None:
+            fread2.close()
     
     # Take one random example for the plot
     oneExample = results[np.random.choice(len(results))]
