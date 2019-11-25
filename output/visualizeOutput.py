@@ -14,8 +14,11 @@ def main():
     inputFile = sys.argv[1]
     if len(sys.argv) > 2:
         inputFile2 = sys.argv[2]
+        isSynchronous = input("Synchronous division? (y/n): ")
+        isSynchronous = True if isSynchronous == "y" else False
     else:
         inputFile2 = None
+        isSynchronous = None
     
     # Read the runs
     with open(inputFile, "r") as fread:
@@ -23,6 +26,8 @@ def main():
         
         if inputFile2 is not None:
             fread2 = open(inputFile2, "r")
+            if isSynchronous:
+                fread2.readline() # Remove the tArray from this one
         
         # Read each run
         results = []
@@ -36,6 +41,9 @@ def main():
         
         if inputFile2 is not None:
             fread2.close()
+            # If not synchronous, remove first result (divided by tArray!)
+            if not isSynchronous:
+                results = results[1:]
     
     # Take one random example for the plot
     oneExample = results[np.random.choice(len(results))]
