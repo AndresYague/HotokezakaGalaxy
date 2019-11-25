@@ -40,6 +40,39 @@ class EventsObj():
         '''Generate the events according to the parameters
         introduced by the user and the rate function'''
         
+        # Temp file for times:
+        timesFile = "tempTime.in"
+        fwriteTime = open(timesFile, "w")
+        
+        # Temp file for distances:
+        distFile = "tempDist.in"
+        fwriteDist = open(distFile, "w")
+        
+        # Divide the nRuns in chunks of 10
+        tempLen = 0
+        tempRuns = 10; totRuns = 0
+        while True:
+            if totRuns + tempRuns > nRuns:
+                tempRuns = nRuns - totRuns
+            if tempRuns == 0:
+                break
+            
+            # Get the random events
+            size = self.__getRuns(fwriteTime, fwriteDist, rateFunc, sampleDt,
+                                  tempRuns)
+            
+            # Update tempLen and totRuns
+            tempLen += size
+            totRuns += tempRuns
+        
+        fwriteTime.close()
+        fwriteDist.close()
+        
+        return size, timesFile, distFile
+    
+    def __getRuns(self, fwriteTime, fwriteDist, rateFunc, sampleDt, nRuns):
+        '''Inner function to generate the files'''
+        
         # Get the random events
         
         # For each Myr, produce R events randomly distributed in
@@ -81,7 +114,16 @@ class EventsObj():
             
             tt += tempSampleDt
         
-        return times, distances
+        # Write to temporal files
+        for timeArr in times:
+            fwriteTime.write(" ".join([str(x) for x in timeArr]))
+            fwriteTime.write("\n")
+        
+        for distArr in distances:
+            fwriteDist.write(" ".join([str(x) for x in distArr]))
+            fwriteDist.write("\n")
+        
+        return len(times[0])
     
 def main():
     '''Monte Carlo event generator'''
@@ -139,28 +181,34 @@ def main():
                        circumf = circumf,
                        width = inputArgs["width"],
                        time = inputArgs["time"])
-    times, distances = events.getEvents(rate, sampleDt, nRuns)
+    sizeRun, timesFile, distFile = events.getEvents(rate, sampleDt, nRuns)
     
     fileName = "../input/Run"
     fileName += "".join(["_{}_{:.2f}".format(key, inputArgs[key])
                         for key in inputArgs])
     fileName += ".in"
     with open(fileName, "w") as fwrite:
-        fwrite.write("{} {} {}\n".format(len(times), len(times[0]),
-                                         inputArgs["hscale"]))
+        fwrite.write("{} {} {}\n".format(nRuns, sizeRun, inputArgs["hscale"]))
         
-        # Write times
-        for timeArr in times:
-            fwrite.write(" ".join([str(x) for x in timeArr]))
-            fwrite.write("\n")
+        # Put all times
+        with open(timesFile, "r") as fread:
+            for line in fread:
+                # Write times
+                fwrite.write(line)
         
-        # Write distances
-        for distArr in distances:
-            fwrite.write(" ".join([str(x) for x in distArr]))
-            fwrite.write("\n")
+        # Now put all distances
+        with open(distFile, "r") as fread:
+            for line in fread:
+                
+                # Write times
+                fwrite.write(line)
         
         # Write the production factors
         fwrite.write("{} {}\n{}".format(1, 1, 1))
+    
+    # Remove the temporal files
+    os.remove(timesFile)
+    os.remove(distFile)
     
     # Create a suitable tArray.in for this simulation
     step = 10
