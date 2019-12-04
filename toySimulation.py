@@ -54,7 +54,7 @@ class SimulationObj():
         # said Myr:
         tt = 0; times = []; distances = []
         tempSampleDt = sampleDt
-        while tt <= self.timeMyr:
+        while tt < self.timeMyr:
             nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
             
             # Check that the number of events changes meaningfully
@@ -66,6 +66,11 @@ class SimulationObj():
                 if nEvents != futureNEvents:
                     break
                 tempSampleDt *= 10
+            
+            # Limit maximum time of events
+            if tt + tempSampleDt > self.timeMyr:
+                tempSampleDt = self.timeMyr - tt
+                nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
             
             # Get the times
             times = np.append(times,
