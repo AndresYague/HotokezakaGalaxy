@@ -2,88 +2,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-def cucciatiFunction(r0, totTime):
-    '''
-    Define the change of rate with time according to Cucciati et al. 2012
-    -r0 is the present rate in events/Myr
-    -totTime is the total simulation time in Myr before present
-    '''
-    
-    # Hubble constant (km/(s Mpc))
-    H0 = 70
-    
-    # Inverse of transformed constant in 1/Myr
-    H0m1 = 1/(H0*3.24e-7*np.pi)
-    
-    # Total life of the universe in Myr
-    lifeUniverse = 14000
-    
-    # Function from time to redshift
-    zz = lambda t: np.sqrt(2*H0m1/(lifeUniverse + (t - totTime)) - 1) - 1
-    
-    # Tabulated values of rate function
-    lst=[[0,0.2,-1.65],
-         [0.2,0.4,-1.44],
-         [0.4,0.6,-1.34],
-         [0.6,0.8,-1.15],
-         [0.8,1.0,-0.9],
-         [1.0,1.2,-0.85],
-         [1.2,1.7,-0.85],
-         [1.7,2.5,-0.62],
-         [2.5,3.5,-0.86],
-         [3.5,4.5,-1.37]]
-
-    # List with the average bin in redshift
-    xx = [(x[0] + x[1])*0.5 for x in lst]
-    
-    # List with the rate values
-    yy = [x[2] for x in lst]
-    
-    # Fit with parabola
-    fitCoef = np.polyfit(xx, yy, 2)
-    pp = np.poly1d(fitCoef)
-    
-    # Give the rate normalized to current rate (r0)
-    return lambda t: 10**pp(zz(t))*r0/10**(-1.65)
-
-def hopiknsFunction(r0, totTime):
-    '''
-    Define the change of rate with time according to Hopkins et al. 2006
-    -r0 is the present rate in events/Myr
-    -totTime is the total simulation time in Myr before present
-    '''
-    
-    # Parameters for function
-    a=0.017; b=0.13
-    c=3.3; d=5.3; h=0.7
-    
-    # Hubble constant (km/(s Mpc))
-    H0 = 70
-    
-    # Inverse of transformed constant in 1/Myr
-    H0m1 = 1/(H0*3.24e-7*np.pi)
-    
-    # Total life of the universe in Myr
-    lifeUniverse = 14000
-    
-    # Function from time to redshift
-    zz = lambda t: np.sqrt(2*H0m1/(lifeUniverse + (t - totTime)) - 1) - 1
-    
-    # Rate normalized to present (r0)
-    rate = lambda t: (a + b*zz(t))*h/(1 + (zz(t)/c)**d) * (r0/a*h)
-    
-    return rate
-
-def linearFunction(r0, rAvg, totTime):
+def rateFunction(r0,totTime):
+    lst=[[0,0.2,-1.65],[0.2,0.4,-1.44],[0.4,0.6,-1.34],[0.6,0.8,-1.15],[0.8,1.0,-0.9],[1.0,1.2,-0.85],[1.2,1.7,-0.85],[1.7,2.5,-0.62],[2.5,3.5,-0.86],[3.5,4.5,-1.37]]
     '''
     Define the change of rate with time
     -r0 is the present rate in events/Myr
     -rAvg is the average rate in events/Myr
     -totTime is the total simulation time in Myr before present
     '''
-    
-    # Suppose a linear function
-    rate = lambda t: rAvg + (rAvg - r0)*(1 - 2*t/totTime)
+    def rate(t):
+        
+            
+        z=(((28000/(14000-totTime+t))-1)**0.5)-1
+        for i in lst:
+            if i[0]<=z and i[1]>=z:
+                return 10**i[2]*r0/10**(-1.65)
     
     return rate
 
@@ -112,6 +45,7 @@ class SimulationObj():
         self.timeMyr = time
     
     def runSimulation(self, tau, rateFunc, sampleDt):
+        
         '''Generate the events according to the parameters
         introduced by the user and the rate function'''
         
@@ -161,8 +95,10 @@ class SimulationObj():
         jj = 0
         # Update all values
         for ii in range(len(times)):
-            while times[ii] > simulTime[jj]:
+            if times[ii] > simulTime[jj]:
                 jj += 1
+                if jj > lenSimulTime - 1:
+                    break
             
             dt = simulTime[jj:] - times[ii]
             r2 = self.diff*dt
@@ -197,14 +133,7 @@ def main():
                 continue
             
             # Fill all the arguments
-            try:
-                val = float(lnlst[0])
-            except ValueError:
-                val = lnlst[0]
-            except:
-                raise
-            
-            key = lnlst[1]
+            val = float(lnlst[0]); key = lnlst[1]
             inputArgs[key] = val
     
     # Check at least correct number of arguments
@@ -226,13 +155,7 @@ def main():
     
     # Get the rate
     r0 = inputArgs["r0"]*fraction
-    if inputArgs["rateFunct"] == "linear":
-        rate = linearFunction(r0, 5*r0, inputArgs["time"])
-    elif inputArgs["rateFunct"] == "hopkins":
-        rate = hopiknsFunction(r0, inputArgs["time"])
-    elif inputArgs["rateFunct"] == "cucciati":
-        rate = cucciatiFunction(r0, inputArgs["time"])
-    
+    rate = rateFunction(r0,inputArgs["time"])
     # Set tau (in Myr)
     tau = inputArgs["tau"]
     
@@ -248,7 +171,7 @@ def main():
                           time = inputArgs["time"])
     
     simulTime, simulOutpt = simul.runSimulation(tau, rate, sampleDt)
-    
+
     # Plot results
     lowTime = 2000
     for ii in range(len(simulTime)):
