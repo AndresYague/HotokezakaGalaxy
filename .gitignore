@@ -3,7 +3,7 @@ HotoCalc
 
 # Ignore .in and .out files
 *.in
-*.out
+*.out*
 
 # Ignore the "tags" file
 tags

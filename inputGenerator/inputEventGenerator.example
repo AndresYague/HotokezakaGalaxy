@@ -8,3 +8,4 @@
 5           r0          # Present-time galactic event rate (n/Myr)
 5           sampleDt    # How often to sample the rate function/table (Myr)
 2           nRuns       # Number of runs for the monte carlo method
+linear      rateFunct   # Rate function: Choices are: linear, hopkins and cucciati
