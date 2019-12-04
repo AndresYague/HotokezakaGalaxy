@@ -139,6 +139,7 @@ class SimulationObj():
                     break
                 tempSampleDt *= 10
             
+            # Limit maximum time of events
             if tt + tempSampleDt > self.timeMyr:
                 tempSampleDt = self.timeMyr - tt
                 nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
