@@ -1,8 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import os
 
-def cucciatiFunction(r0, totTime):
+def cucciatiFunctionStep(r0, totTime, lst):
     '''
     Define the change of rate with time according to Cucciati et al. 2012
     -r0 is the present rate in events/Myr
@@ -18,17 +17,33 @@ def cucciatiFunction(r0, totTime):
     # Total life of the universe in Myr
     lifeUniverse = 14000
     
-    # Tabulated values of rate function
-    lst=[[0,0.2,-1.65],
-         [0.2,0.4,-1.44],
-         [0.4,0.6,-1.34],
-         [0.6,0.8,-1.15],
-         [0.8,1.0,-0.9],
-         [1.0,1.2,-0.85],
-         [1.2,1.7,-0.85],
-         [1.7,2.5,-0.62],
-         [2.5,3.5,-0.86],
-         [3.5,4.5,-1.37]]
+    # Function from time to redshift
+    zz = lambda t: np.sqrt(2*H0m1/(lifeUniverse + (t - totTime)) - 1) - 1
+    
+    def rate(t):
+        zt = zz(t)
+        for elem in lst:
+            if elem[0] < zt and zt <= elem[1]:
+                return 10**elem[2]*r0/(10**lst[0][2])
+    
+    # Give the rate normalized to current rate (r0)
+    return rate
+
+def cucciatiFunctionPolyfit(r0, totTime, lst):
+    '''
+    Define the change of rate with time according to Cucciati et al. 2012
+    -r0 is the present rate in events/Myr
+    -totTime is the total simulation time in Myr before present
+    '''
+    
+    # Hubble constant (km/(s Mpc))
+    H0 = 70
+    
+    # Inverse of transformed constant in 1/Myr
+    H0m1 = 1/(H0*3.24e-7*np.pi)
+    
+    # Total life of the universe in Myr
+    lifeUniverse = 14000
 
     # List with the average bin in redshift
     xx = [(x[0] + x[1])*0.5 for x in lst]
@@ -37,7 +52,7 @@ def cucciatiFunction(r0, totTime):
     yy = [x[2] for x in lst]
     
     # Fit with parabola
-    fitCoef = np.polyfit(xx, yy, 2)
+    fitCoef = np.polyfit(xx, yy, 3)
     pp = np.poly1d(fitCoef)
     
     # Function from time to redshift
@@ -45,6 +60,44 @@ def cucciatiFunction(r0, totTime):
     
     # Give the rate normalized to current rate (r0)
     return lambda t: 10**pp(zz(t))*r0/10**(-1.65)
+
+def cucciatiFunctionInterpol(r0, totTime, lst0):
+    '''
+    Define the change of rate with time according to Cucciati et al. 2012
+    -r0 is the present rate in events/Myr
+    -totTime is the total simulation time in Myr before present
+    '''
+    
+    # Hubble constant (km/(s Mpc))
+    H0 = 70
+    
+    # Inverse of transformed constant in 1/Myr
+    H0m1 = 1/(H0*3.24e-7*np.pi)
+    
+    # Total life of the universe in Myr
+    lifeUniverse = 14000
+    
+    lst = [[lst0[0][0], lst0[0][2]]]
+    for elem in lst0:
+        lst.append([(elem[0] + elem[1])*0.5, elem[2]])
+    lst.append([lst0[-1][1], lst0[-1][2]])
+    
+    # Function from time to redshift
+    zz = lambda t: np.sqrt(2*H0m1/(lifeUniverse + (t - totTime)) - 1) - 1
+    
+    def rate(t):
+        zt = zz(t)
+        for ii in range(len(lst) - 1):
+            if lst[ii][0] <= zt and zt < lst[ii + 1][0]:
+                x0 = lst[ii][0]; x1 = lst[ii + 1][0]
+                y0 = lst[ii][1]; y1 = lst[ii + 1][1]
+                
+                mm = (y1 - y0)/(x1 - x0)
+                yy = mm*zt + y1 - mm*x1
+                return 10**yy*r0/(10**lst[0][1])
+    
+    # Give the rate normalized to current rate (r0)
+    return rate
 
 def hopiknsFunction(r0, totTime):
     '''
@@ -270,14 +323,43 @@ def main():
     r0 = inputArgs["r0"]*fraction
     if inputArgs["rateFunct"] == "linear":
         rate = linearFunction(r0, 5*r0, inputArgs["time"])
+        
+    elif inputArgs["rateFunct"] == "constant":
+        rate = linearFunction(r0, r0, inputArgs["time"])
+        
     elif inputArgs["rateFunct"] == "hopkins":
         rate = hopiknsFunction(r0, inputArgs["time"])
-    elif inputArgs["rateFunct"] == "cucciati":
-        rate = cucciatiFunction(r0, inputArgs["time"])
+        
+    elif "cucciati" in inputArgs["rateFunct"]:
+        
+        # Tabulated values of Cucciati rate function
+        lst = [[0.0, 0.2, -1.65],
+               [0.2, 0.4, -1.44],
+               [0.4, 0.6, -1.34],
+               [0.6, 0.8, -1.15],
+               [0.8, 1.0, -0.90],
+               [1.0, 1.2, -0.85],
+               [1.2, 1.7, -0.85],
+               [1.7, 2.5, -0.62],
+               [2.5, 3.5, -0.86],
+               [3.5, 4.5, -1.37]]
+        
+        if "Interpol" in inputArgs["rateFunct"]:
+            rate = cucciatiFunctionInterpol(r0, inputArgs["time"], lst)
+        elif "Polyfit" in inputArgs["rateFunct"]:
+            rate = cucciatiFunctionPolyfit(r0, inputArgs["time"], lst)
+        elif "Step" in inputArgs["rateFunct"]:
+            rate = cucciatiFunctionStep(r0, inputArgs["time"], lst)
+        else:
+            print("Unknown rate function")
+            return 1
+       
+    else:
+        print("Unknown rate function")
+        return 1
     
-    # Set number of runs and sample Dt for the rate function (in Myr)
+    # Set number of runs
     nRuns = int(inputArgs["nRuns"])
-    sampleDt = inputArgs["sampleDt"]
     
     # Initialize simulation
     events = EventsObj(hscale = inputArgs["hscale"],
@@ -320,7 +402,7 @@ def main():
     os.remove(distFile)
     
     # Create a suitable tArray.in for this simulation
-    step = 10
+    step = inputArgs["sampleDt"]
     tArray = np.arange(0, inputArgs["time"] + step, step)
     with open(fileName + "tArray.in", "w") as fwrite:
         fwrite.write("{}\n".format(len(tArray)))

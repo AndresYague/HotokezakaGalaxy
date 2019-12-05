@@ -1,11 +1,11 @@
 # Example of input file for generator:
 
-0.2         hscale      # Height scale of the simulation (kpc)
-8.33        rSun        # Solar radius (kpc)
-2           width       # Width of the solar circle (kpc)
-3           rd          # Radius scale for galaxy mass distribution (kpc)
-7000        time        # Simulation time (Myr)
-5           r0          # Present-time galactic event rate (n/Myr)
-5           sampleDt    # How often to sample the rate function/table (Myr)
-2           nRuns       # Number of runs for the monte carlo method
-linear      rateFunct   # Rate function: Choices are: linear, hopkins and cucciati
+0.2                 hscale      # Height scale of the simulation (kpc)
+8.33                rSun        # Solar radius (kpc)
+2                   width       # Width of the solar circle (kpc)
+3                   rd          # Radius scale for galaxy mass distribution (kpc)
+7000                time        # Simulation time (Myr)
+5                   r0          # Present-time galactic event rate (n/Myr)
+10                  sampleDt    # How often to sample the simulation (Myr)
+100                 nRuns       # Number of runs for the monte carlo method
+cucciatiInterpol    rateFunct   # Rate function. Choices are: linear, constant, hopkins, cucciatiInterpol, cucciatiPolyfit and cucciatiStep
