@@ -108,7 +108,7 @@ class EventsObj():
         self.width = width
         self.simulationTime = time
     
-    def getEvents(self, rateFunc, sampleDt, nRuns):
+    def getEvents(self, rateFunc, nRuns):
         '''Generate the events according to the parameters
         introduced by the user and the rate function'''
         
@@ -120,6 +120,37 @@ class EventsObj():
         distFile = "tempDist.in"
         fwriteDist = open(distFile, "w")
         
+        # First integrate the function to know how many events in total
+        maxDistrib = 0; sampleDt = 10
+        prevNum = None; totNum = 0
+        while prevNum != totNum:
+            halfSample = sampleDt*0.5
+            
+            # Advance prevNum
+            prevNum = totNum
+            
+            # Do a trapezoidal quadrature with sampleDt
+            totNum = 0; tt = 0
+            fun0 = rateFunc(0); fun1 = rateFunc(sampleDt)
+            while True:
+                # Integrate step
+                totNum += (fun0 + fun1)*halfSample
+                
+                # Store maximum of distribution
+                maxDistrib = max(maxDistrib, fun0, fun1)
+                
+                # Check if in final steps
+                if tt < self.simulationTime:
+                    tt += min(sampleDt, self.simulationTime - tt)
+                    fun0 = fun1
+                    fun1 = rateFunc(tt + sampleDt)
+                else:
+                    break
+            
+            # Advance integration refinement
+            totNum = int(np.round(totNum))
+            sampleDt = halfSample
+        
         # Divide the nRuns in chunks of 10
         tempLen = 0
         tempRuns = 10; totRuns = 0
@@ -130,61 +161,51 @@ class EventsObj():
                 break
             
             # Get the random events
-            size = self.__getRuns(fwriteTime, fwriteDist, rateFunc, sampleDt,
-                                  tempRuns)
+            self.__getRuns(fwriteTime, fwriteDist, rateFunc, totNum, maxDistrib,
+                           tempRuns)
             
-            # Update tempLen and totRuns
-            tempLen += size
+            # Update totRuns
             totRuns += tempRuns
         
         fwriteTime.close()
         fwriteDist.close()
         
-        return size, timesFile, distFile
+        return totNum, timesFile, distFile
     
-    def __getRuns(self, fwriteTime, fwriteDist, rateFunc, sampleDt, nRuns):
+    def __getRuns(self, fwriteTime, fwriteDist, rateFunc, totNum, maxDistrib,
+                  nRuns):
         '''Inner function to generate the files'''
         
         # Get the random events
         
         # For each Myr, produce R events randomly distributed in
         # said Myr:
-        tt = 0
         times = [[] for x in range(nRuns)]
         distances = [[] for x in range(nRuns)]
-        tempSampleDt = sampleDt
-        while tt < self.simulationTime:
-            nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
+        for ii in range(nRuns):
+            tempNum = totNum
+            while tempNum > 0:
+                xx = np.random.random()*self.simulationTime
+                yy = np.random.random()*maxDistrib
+                
+                # If a number is selected
+                if yy <= rateFunc(xx):
+                    tempNum -= 1
+                    
+                    # Store time
+                    times[ii].append(xx)
+                    
+                    # Get position
+                    xx_pos = self.circumf*np.random.random() - 0.5*self.circumf
+                    yy_pos = self.width*np.random.random() - 0.5*self.width
+                    zz_pos = np.random.laplace(0, self.hscale)
+                    
+                    # Calculate the distances from origin
+                    distances[ii].append(np.sqrt(xx_pos**2 + yy_pos**2 +
+                                                 zz_pos**2))
             
-            # Check that the number of events changes meaningfully
-            tempSampleDt = sampleDt
-            while tt + tempSampleDt <= self.simulationTime:
-                nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
-                futureNEvents = int(np.round(rateFunc(tt +
-                                                tempSampleDt)*tempSampleDt))
-                if nEvents != futureNEvents:
-                    break
-                tempSampleDt *= 10
-            
-            if tt + tempSampleDt > self.simulationTime:
-                tempSampleDt = self.simulationTime - tt
-                nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
-            
-            # Get the times
-            times = np.append(times,
-                    np.sort(tempSampleDt*np.random.random((nRuns, nEvents)) +
-                             tt), axis = 1)
-            
-            # Get positions
-            xx = self.circumf*np.random.random((nRuns, nEvents)) - 0.5*self.circumf
-            yy = self.width*np.random.random((nRuns, nEvents)) - 0.5*self.width
-            zz = np.random.laplace(0, self.hscale, (nRuns, nEvents))
-            
-            # Calculate the distances from origin
-            distances = np.append(distances, np.sqrt(xx**2 + yy**2 + zz**2),
-                    axis = 1)
-            
-            tt += tempSampleDt
+            # Sort the time array
+            times[ii].sort()
         
         # Write to temporal files
         for timeArr in times:
@@ -194,8 +215,6 @@ class EventsObj():
         for distArr in distances:
             fwriteDist.write(" ".join([str(x) for x in distArr]))
             fwriteDist.write("\n")
-        
-        return len(times[0])
     
 def main():
     '''Monte Carlo event generator'''
@@ -265,7 +284,7 @@ def main():
                        circumf = circumf,
                        width = inputArgs["width"],
                        time = inputArgs["time"])
-    sizeRun, timesFile, distFile = events.getEvents(rate, sampleDt, nRuns)
+    sizeRun, timesFile, distFile = events.getEvents(rate, nRuns)
     
     fileName = "../input/Run"
     try:

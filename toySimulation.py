@@ -122,41 +122,60 @@ class SimulationObj():
         
         # Get the random events
         
-        # For each Myr, produce R events randomly distributed in
-        # said Myr:
-        tt = 0; times = []; distances = []
-        tempSampleDt = sampleDt
-        while tt < self.timeMyr:
-            nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
+        # First integrate the function to know how many events in total
+        maxDistrib = 0
+        prevNum = None; totNum = 0
+        while prevNum != totNum:
+            halfSample = sampleDt*0.5
             
-            # Check that the number of events changes meaningfully
-            tempSampleDt = sampleDt
-            while tt + tempSampleDt < self.timeMyr:
-                nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
-                futureNEvents = int(np.round(rateFunc(tt +
-                                                 tempSampleDt)*tempSampleDt))
-                if nEvents != futureNEvents:
+            # Advance prevNum
+            prevNum = totNum
+            
+            # Do a trapezoidal quadrature with sampleDt
+            totNum = 0; tt = 0
+            fun0 = rateFunc(0); fun1 = rateFunc(sampleDt)
+            while True:
+                # Integrate step
+                totNum += (fun0 + fun1)*halfSample
+                
+                # Store maximum of distribution
+                maxDistrib = max(maxDistrib, fun0, fun1)
+                
+                # Check if in final steps
+                if tt < self.timeMyr:
+                    tt += min(sampleDt, self.timeMyr - tt)
+                    fun0 = fun1
+                    fun1 = rateFunc(tt + sampleDt)
+                else:
                     break
-                tempSampleDt *= 10
             
-            # Limit maximum time of events
-            if tt + tempSampleDt > self.timeMyr:
-                tempSampleDt = self.timeMyr - tt
-                nEvents = int(np.round(rateFunc(tt)*tempSampleDt))
+            # Advance integration refinement
+            totNum = int(np.round(totNum))
+            sampleDt = halfSample
+        
+        # Now randomly sample a totNum of events
+        times = []; distances = []
+        while totNum > 0:
+            xx = np.random.random()*self.timeMyr
+            yy = np.random.random()*maxDistrib
             
-            # Get the times
-            times = np.append(times,
-                    np.sort(tempSampleDt*np.random.random(nEvents)) + tt)
-            
-            # Get positions
-            xx = self.circumf*np.random.random(nEvents) - 0.5*self.circumf
-            yy = self.width*np.random.random(nEvents) - 0.5*self.width
-            zz = np.random.laplace(0, self.hscale, nEvents)
-            
-            # Calculate the distances from origin
-            distances = np.append(distances, np.sqrt(xx**2 + yy**2 + zz**2))
-            
-            tt += tempSampleDt
+            # If a number is selected
+            if yy <= rateFunc(xx):
+                totNum -= 1
+                
+                # Store time
+                times.append(xx)
+                
+                # Get position
+                xx_pos = self.circumf*np.random.random() - 0.5*self.circumf
+                yy_pos = self.width*np.random.random() - 0.5*self.width
+                zz_pos = np.random.laplace(0, self.hscale)
+                
+                # Calculate the distances from origin
+                distances.append(np.sqrt(xx_pos**2 + yy_pos**2 + zz_pos**2))
+        
+        # Sort the time array
+        times.sort()
         
         jj = 0
         # Update all values
