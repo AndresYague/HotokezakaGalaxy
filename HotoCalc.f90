@@ -146,8 +146,8 @@ PROGRAM HotoCalc
     WRITE(uni, *)
     
     ! Do one separate run for each tau
-    abundArray = 0.D0
     DO ii = 1, nTau
+        abundArray = 0.D0
         WRITE(uni, *) "#", taus(ii)
         
         ! Calculate

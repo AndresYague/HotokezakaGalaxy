@@ -8,4 +8,4 @@
 5                   r0          # Present-time galactic event rate (n/Myr)
 10                  sampleDt    # How often to sample the simulation (Myr)
 100                 nRuns       # Number of runs for the monte carlo method
-cucciatiInterpol    rateFunct   # Rate function. Choices are: linear, constant, hopkins, cucciatiInterpol, cucciatiPolyfit and cucciatiStep
+wanderman           rateFunct   # Rate function. Choices are: linear, constant, hopkins, wanderman, cucciatiInterpol, cucciatiPolyfit and cucciatiStep

@@ -99,6 +99,35 @@ def cucciatiFunctionInterpol(r0, totTime, lst0):
     # Give the rate normalized to current rate (r0)
     return rate
 
+def wandermanFunction(r0, totTime):
+    '''
+    Define the change of rate with time according to Wanderman et al. 2015
+    -r0 is the present rate in events/Myr
+    -totTime is the total simulation time in Myr before present
+    '''
+    
+    # Hubble constant (km/(s Mpc))
+    H0 = 60
+    
+    # Inverse of transformed constant in 1/Myr
+    H0m1 = 1/(H0*3.24e-7*np.pi)
+    
+    # Total life of the universe in Myr
+    lifeUniverse = 14000
+    
+    # Function from time to redshift
+    zz = lambda t: np.sqrt(2*H0m1/(lifeUniverse + (t - totTime)) - 1) - 1
+    
+    # Give the rate normalized to current rate (r0)
+    def rate(t):
+        normConst = r0*np.exp(0.9/0.39)
+        if zz(t) > 0.9:
+            return np.exp(-(zz(t) - 0.9)/0.26)*normConst
+        else:
+            return np.exp((zz(t) - 0.9)/0.39)*normConst
+    
+    return rate
+
 def hopiknsFunction(r0, totTime):
     '''
     Define the change of rate with time according to Hopkins et al. 2006
@@ -330,6 +359,9 @@ def main():
     elif inputArgs["rateFunct"] == "hopkins":
         rate = hopiknsFunction(r0, inputArgs["time"])
         
+    elif inputArgs["rateFunct"] == "wanderman":
+        rate = wandermanFunction(r0, inputArgs["time"])
+        
     elif "cucciati" in inputArgs["rateFunct"]:
         
         # Tabulated values of Cucciati rate function
@@ -368,13 +400,17 @@ def main():
                        time = inputArgs["time"])
     sizeRun, timesFile, distFile = events.getEvents(rate, nRuns)
     
+    # Create filename
     fileName = "../input/Run"
+    
+    # Sort keys so they always go in same order
+    sortedKeys = [key for key in inputArgs]; sortedKeys.sort()
     try:
         fileName += "".join(["_{}_{:.2f}".format(key, inputArgs[key])
-                            for key in inputArgs])
+                            for key in sortedKeys])
     except ValueError:
         fileName += "".join(["_{}_{}".format(key, inputArgs[key])
-                            for key in inputArgs])
+                            for key in sortedKeys])
     except:
         raise
     fileName += ".in"

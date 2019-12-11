@@ -266,7 +266,7 @@ def main():
             lnlst = line.split()
             
             # Ignore comments and empty lines
-            if len(lnlst) == 0 or lnlst[0] == "#":
+            if len(lnlst) == 0 or lnlst[0][0] == "#":
                 continue
             
             # Fill all the arguments
