@@ -405,6 +405,7 @@ def main():
     
     # Sort keys so they always go in same order
     sortedKeys = [key for key in inputArgs]; sortedKeys.sort()
+    sortedKeys.pop(sortedKeys.index("sampleDt"))
     try:
         fileName += "".join(["_{}_{:.2f}".format(key, inputArgs[key])
                             for key in sortedKeys])
@@ -413,7 +414,10 @@ def main():
                             for key in sortedKeys])
     except:
         raise
+    
+    # Add the "in" at the end
     fileName += ".in"
+    
     with open(fileName, "w") as fwrite:
         fwrite.write("{} {} {}\n".format(nRuns, sizeRun, inputArgs["hscale"]))
         
@@ -437,10 +441,15 @@ def main():
     os.remove(timesFile)
     os.remove(distFile)
     
+    # Filename for the tArray.in thing
+    fileName = "../input/tArray_sampleDt"
+    fileName += "_{}_time_{}".format(inputArgs["sampleDt"], inputArgs["time"])
+    fileName += ".in"
+    
     # Create a suitable tArray.in for this simulation
     step = inputArgs["sampleDt"]
     tArray = np.arange(0, inputArgs["time"] + step, step)
-    with open(fileName + "tArray.in", "w") as fwrite:
+    with open(fileName, "w") as fwrite:
         fwrite.write("{}\n".format(len(tArray)))
         fwrite.write(" ".join([str(x) for x in tArray]))
 
