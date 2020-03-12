@@ -1,11 +1,9 @@
 import numpy as np
 import os
 
-def cucciatiFunctionStep(r0, totTime, lst):
+def zz(t, totTime):
     '''
-    Define the change of rate with time according to Cucciati et al. 2012
-    -r0 is the present rate in events/Myr
-    -totTime is the total simulation time in Myr before present
+    Define the function from time to redshift
     '''
     
     # Hubble constant (km/(s Mpc))
@@ -18,10 +16,17 @@ def cucciatiFunctionStep(r0, totTime, lst):
     lifeUniverse = 14000
     
     # Function from time to redshift
-    zz = lambda t: np.sqrt(2*H0m1/(lifeUniverse + (t - totTime)) - 1) - 1
+    return np.sqrt(2*H0m1/(lifeUniverse + (t - totTime)) - 1) - 1
+
+def cucciatiFunctionStep(r0, totTime, lst):
+    '''
+    Define the change of rate with time according to Cucciati et al. 2012
+    -r0 is the present rate in events/Myr
+    -totTime is the total simulation time in Myr before present
+    '''
     
     def rate(t):
-        zt = zz(t)
+        zt = zz(t, totTime)
         for elem in lst:
             if elem[0] < zt and zt <= elem[1]:
                 return 10**elem[2]*r0/(10**lst[0][2])
@@ -35,15 +40,6 @@ def cucciatiFunctionPolyfit(r0, totTime, lst):
     -r0 is the present rate in events/Myr
     -totTime is the total simulation time in Myr before present
     '''
-    
-    # Hubble constant (km/(s Mpc))
-    H0 = 70
-    
-    # Inverse of transformed constant in 1/Myr
-    H0m1 = 1/(H0*3.24e-7*np.pi)
-    
-    # Total life of the universe in Myr
-    lifeUniverse = 14000
 
     # List with the average bin in redshift
     xx = [(x[0] + x[1])*0.5 for x in lst]
@@ -55,11 +51,8 @@ def cucciatiFunctionPolyfit(r0, totTime, lst):
     fitCoef = np.polyfit(xx, yy, 3)
     pp = np.poly1d(fitCoef)
     
-    # Function from time to redshift
-    zz = lambda t: np.sqrt(2*H0m1/(lifeUniverse + (t - totTime)) - 1) - 1
-    
     # Give the rate normalized to current rate (r0)
-    return lambda t: 10**pp(zz(t))*r0/10**(-1.65)
+    return lambda t: 10**pp(zz(t, totTime))*r0/10**(-1.65)
 
 def cucciatiFunctionInterpol(r0, totTime, lst0):
     '''
@@ -68,25 +61,13 @@ def cucciatiFunctionInterpol(r0, totTime, lst0):
     -totTime is the total simulation time in Myr before present
     '''
     
-    # Hubble constant (km/(s Mpc))
-    H0 = 70
-    
-    # Inverse of transformed constant in 1/Myr
-    H0m1 = 1/(H0*3.24e-7*np.pi)
-    
-    # Total life of the universe in Myr
-    lifeUniverse = 14000
-    
     lst = [[lst0[0][0], lst0[0][2]]]
     for elem in lst0:
         lst.append([(elem[0] + elem[1])*0.5, elem[2]])
     lst.append([lst0[-1][1], lst0[-1][2]])
     
-    # Function from time to redshift
-    zz = lambda t: np.sqrt(2*H0m1/(lifeUniverse + (t - totTime)) - 1) - 1
-    
     def rate(t):
-        zt = zz(t)
+        zt = zz(t, totTime)
         for ii in range(len(lst) - 1):
             if lst[ii][0] <= zt and zt < lst[ii + 1][0]:
                 x0 = lst[ii][0]; x1 = lst[ii + 1][0]
@@ -97,35 +78,6 @@ def cucciatiFunctionInterpol(r0, totTime, lst0):
                 return 10**yy*r0/(10**lst[0][1])
     
     # Give the rate normalized to current rate (r0)
-    return rate
-
-def wandermanFunction(r0, totTime):
-    '''
-    Define the change of rate with time according to Wanderman et al. 2015
-    -r0 is the present rate in events/Myr
-    -totTime is the total simulation time in Myr before present
-    '''
-    
-    # Hubble constant (km/(s Mpc))
-    H0 = 60
-    
-    # Inverse of transformed constant in 1/Myr
-    H0m1 = 1/(H0*3.24e-7*np.pi)
-    
-    # Total life of the universe in Myr
-    lifeUniverse = 14000
-    
-    # Function from time to redshift
-    zz = lambda t: np.sqrt(2*H0m1/(lifeUniverse + (t - totTime)) - 1) - 1
-    
-    # Give the rate normalized to current rate (r0)
-    def rate(t):
-        normConst = r0*np.exp(0.9/0.39)
-        if zz(t) > 0.9:
-            return np.exp(-(zz(t) - 0.9)/0.26)*normConst
-        else:
-            return np.exp((zz(t) - 0.9)/0.39)*normConst
-    
     return rate
 
 def hopiknsFunction(r0, totTime):
@@ -139,22 +91,25 @@ def hopiknsFunction(r0, totTime):
     a=0.017; b=0.13
     c=3.3; d=5.3; h=0.7
     
-    # Hubble constant (km/(s Mpc))
-    H0 = 70
-    
-    # Inverse of transformed constant in 1/Myr
-    H0m1 = 1/(H0*3.24e-7*np.pi)
-    
-    # Total life of the universe in Myr
-    lifeUniverse = 14000
-    
-    # Function from time to redshift
-    z = lambda t: np.sqrt(2*H0m1/(lifeUniverse + (t - totTime)) - 1) - 1
-    
     # Rate normalized to present (r0)
-    rate = lambda t: (a + b*z(t))*h/(1 + (z(t)/c)**d) * (r0/a*h)
+    rate = lambda t: (a + b*zz(t, totTime))*h/(1 +
+                                    (zz(t, totTime)/c)**d) * (r0/a*h)
     
     return rate
+
+def madauFunction(r0, totTime):
+    '''
+    Define the change of rate with time according to Madau and Dickinson 2014
+    -r0 is the present rate in events/Myr
+    -totTime is the total simulation time in Myr before present
+    '''
+    
+    # Rate normalized to present (r0)
+    rate = lambda t: 0.015*(1 + zz(t, totTime))**2.7/(1 +
+                                        ((1 + zz(t, totTime))/2.9)**5.6)
+    normRate = lambda t: rate(t)*r0/rate(totTime)
+    
+    return normRate
 
 def linearFunction(r0, rAvg, totTime):
     '''
@@ -361,6 +316,9 @@ def main():
         
     elif inputArgs["rateFunct"] == "wanderman":
         rate = wandermanFunction(r0, inputArgs["time"])
+        
+    elif inputArgs["rateFunct"] == "madau":
+        rate = madauFunction(r0, inputArgs["time"])
         
     elif "cucciati" in inputArgs["rateFunct"]:
         
