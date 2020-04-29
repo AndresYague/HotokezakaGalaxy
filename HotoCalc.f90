@@ -12,7 +12,7 @@ PROGRAM HotoCalc
     INTEGER::rank, nProc, ierror
     
     ! Program variables
-    DOUBLE PRECISION, ALLOCATABLE::taus(:), tEvents(:, :), dEvents(:, :)
+    DOUBLE PRECISION, ALLOCATABLE::taus(:), tEvents(:, :), dEvents(:, :), nothing(:)
     DOUBLE PRECISION, ALLOCATABLE::tArray(:), abundArray(:, :), prodFactor(:, :)
     DOUBLE PRECISION::valFactor, alpha, vt, diffCoef, hscale
     INTEGER::uni, nTau, nTimes, lenEvent, nEvents, ii, jj, kk, redNEvents
@@ -49,9 +49,11 @@ PROGRAM HotoCalc
     CLOSE(UNIT = uni)
     
     ! Now read the events.in (which contains hscale)
-    OPEN(UNIT = uni, FILE = "input/events.in")
+    OPEN(UNIT = uni, FILE = "input/events.in", FORM = "UNFORMATTED", &
+        ACCESS = "STREAM")
     
-    READ(uni, *) nEvents, lenEvent, hscale
+    READ(uni) nEvents, lenEvent, hscale
+    
     ! Distribute the events among the processes to conserve memory
     redNEvents = 0
     DO ii = 1, nEvents
@@ -66,15 +68,16 @@ PROGRAM HotoCalc
     ! Allocate tEvents and dEvents with the reduced size redNEvents
     ALLOCATE(tEvents(lenEvent, redNEvents))
     ALLOCATE(dEvents(lenEvent, redNEvents))
+    ALLOCATE(nothing(lenEvent))
     
     ! Read times
     jj = 1
     DO ii = 1, nEvents
         IF (rank.EQ.MOD(ii - 1, nProc)) THEN
-            READ(uni, *) tEvents(:, jj)
+            READ(uni) tEvents(:, jj)
             jj = jj + 1
         ELSE
-            READ(uni, *)
+            READ(uni) nothing
         END IF
     END DO
     
@@ -82,15 +85,15 @@ PROGRAM HotoCalc
     jj = 1
     DO ii = 1, nEvents
         IF (rank.EQ.MOD(ii - 1, nProc)) THEN
-            READ(uni, *) dEvents(:, jj)
+            READ(uni) dEvents(:, jj)
             jj = jj + 1
         ELSE
-            READ(uni, *)
+            READ(uni) nothing
         END IF
     END DO
     
     ! Now read the prodFactor
-    READ(uni, *) lenFactor, nFactor
+    READ(uni) lenFactor, nFactor
     
     ! If there is only one production factor, then we fill the array with that
     ! value. We know is only one if lenFactor = nFactor = 1
@@ -105,7 +108,7 @@ PROGRAM HotoCalc
         STOP
     END IF
     IF (lenFactor.EQ.1) THEN
-        READ(uni, *) valFactor
+        READ(uni) valFactor
     END IF
     
     ! Allocate prodFactor with the reduced size redNEvents
@@ -118,10 +121,10 @@ PROGRAM HotoCalc
         jj = 1
         DO ii = 1, nEvents
             IF (rank.EQ.MOD(ii - 1, nProc)) THEN
-                READ(uni, *) prodFactor(:, jj)
+                READ(uni) prodFactor(:, jj)
                 jj = jj + 1
             ELSE
-                READ(uni, *)
+                READ(uni) nothing
             END IF
         END DO
     END IF
@@ -176,7 +179,7 @@ PROGRAM HotoCalc
     
     CLOSE(uni)
     
-    DEALLOCATE(taus, tEvents, dEvents, tArray, abundArray, prodFactor)
+    DEALLOCATE(taus, tEvents, dEvents, tArray, abundArray, prodFactor, nothing)
     CALL MPI_FINALIZE(ierror)
 CONTAINS
 

@@ -1,5 +1,5 @@
 import numpy as np
-import os
+import os, struct
 
 def zz(t, totTime):
     '''
@@ -376,24 +376,27 @@ def main():
     # Add the "in" at the end
     fileName += ".in"
     
-    with open(fileName, "w") as fwrite:
-        fwrite.write("{} {} {}\n".format(nRuns, sizeRun, inputArgs["hscale"]))
+    with open(fileName, "wb") as fwrite:
+        fwrite.write(struct.pack("iid", nRuns, sizeRun, inputArgs["hscale"]))
         
         # Put all times
         with open(timesFile, "r") as fread:
             for line in fread:
                 # Write times
-                fwrite.write(line)
+                vals = [float(x) for x in line.split()]
+                fmt = "d"*len(vals)
+                fwrite.write(struct.pack(fmt, *vals))
         
         # Now put all distances
         with open(distFile, "r") as fread:
             for line in fread:
-                
-                # Write times
-                fwrite.write(line)
+                vals = [float(x) for x in line.split()]
+                fmt = "d"*len(vals)
+                fwrite.write(struct.pack(fmt, *vals))
         
         # Write the production factors
-        fwrite.write("{} {}\n{}".format(1, 1, 1))
+        fwrite.write(struct.pack("ii", 1, 1))
+        fwrite.write(struct.pack("d", 1))
     
     # Remove the temporal files
     os.remove(timesFile)
