@@ -32,17 +32,14 @@ files = sorted(glob.glob("%s/Output*" %pathOutput))
 # Read evolution of radioactive abundances
 for the_file in files:
     with open(the_file, 'r') as ff:
-        not_header = False
-        i_tau = -1
-        for line in ff:
-            if '#' in line:
-                i_tau += 1
-                if i_tau > 0:
+        while True:
+            line = ff.readline()
+            if "#" in line:
+                for tau in tauList:
+                    fwrite = open(pathOutput + "tau_{}.out".format(tau), "a")
+                    line = " ".join(ff.readline().split()[1:])
+                    fwrite.write("\n" + line)
                     fwrite.close()
-                not_header = True
-                fwrite = open(pathOutput + "tau_{}.out".format(tauList[i_tau]), "a")
-            elif not_header:
-                line = " ".join(line.split()[1:])
-                fwrite.write("\n" + line)
-        
-        fwrite.close()
+                
+            elif len(line) == 0:
+                break

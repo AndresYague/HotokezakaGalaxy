@@ -379,24 +379,26 @@ def main():
     with open(fileName, "wb") as fwrite:
         fwrite.write(struct.pack("iid", nRuns, sizeRun, inputArgs["hscale"]))
         
-        # Put all times
+        # Put all times and distances one after the other so they can be
+        # solved as they are read
         with open(timesFile, "r") as fread:
-            for line in fread:
-                # Write times
-                vals = [float(x) for x in line.split()]
-                fmt = "d"*len(vals)
-                fwrite.write(struct.pack(fmt, *vals))
-        
-        # Now put all distances
-        with open(distFile, "r") as fread:
-            for line in fread:
-                vals = [float(x) for x in line.split()]
-                fmt = "d"*len(vals)
-                fwrite.write(struct.pack(fmt, *vals))
-        
-        # Write the production factors
-        fwrite.write(struct.pack("ii", 1, 1))
-        fwrite.write(struct.pack("d", 1))
+            with open(distFile, "r") as fread2:
+                for line in fread:
+                    line2 = fread2.readline()
+                    
+                    # Write time
+                    vals = [float(x) for x in line.split()]
+                    fmt = "d"*len(vals)
+                    fwrite.write(struct.pack(fmt, *vals))
+                    
+                    # Write distance
+                    vals = [float(x) for x in line2.split()]
+                    fmt = "d"*len(vals)
+                    fwrite.write(struct.pack(fmt, *vals))
+                    
+                    # Write the production factors
+                    fwrite.write(struct.pack("i", 1))
+                    fwrite.write(struct.pack("d", 1.0))
     
     # Remove the temporal files
     os.remove(timesFile)

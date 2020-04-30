@@ -12,11 +12,11 @@ PROGRAM HotoCalc
     INTEGER::rank, nProc, ierror
     
     ! Program variables
-    DOUBLE PRECISION, ALLOCATABLE::taus(:), tEvents(:, :), dEvents(:, :), nothing(:)
-    DOUBLE PRECISION, ALLOCATABLE::tArray(:), abundArray(:, :), prodFactor(:, :)
-    DOUBLE PRECISION::valFactor, alpha, vt, diffCoef, hscale
-    INTEGER::uni, nTau, nTimes, lenEvent, nEvents, ii, jj, kk, redNEvents
-    INTEGER::lenFactor, nFactor
+    DOUBLE PRECISION, ALLOCATABLE::taus(:), tEvents(:), dEvents(:)
+    DOUBLE PRECISION, ALLOCATABLE::tArray(:), abundArray(:), prodFactor(:)
+    DOUBLE PRECISION::alpha, vt, diffCoef, hscale
+    INTEGER::uni, uni2, nTau, nTimes, lenEvent, nEvents, ii, jj
+    INTEGER::lenFactor
     CHARACTER(5)::sRank
     LOGICAL::isMaster
     
@@ -31,7 +31,7 @@ PROGRAM HotoCalc
     isMaster = (rank.EQ.0)
     
     ! Read tau parameters
-    uni = 16
+    uni = 16; uni2 = 17
     OPEN(UNIT = uni, FILE = "input/tauList.in")
     
     READ(uni, *) nTau
@@ -40,7 +40,7 @@ PROGRAM HotoCalc
     
     CLOSE(UNIT = uni)
     
-    ! Read alpha, vt, and hscale
+    ! Read alpha and vt
     OPEN(UNIT = uni, FILE = "input/inputHotoGalaxy.in")
     
     READ(uni, *) alpha
@@ -48,138 +48,72 @@ PROGRAM HotoCalc
     
     CLOSE(UNIT = uni)
     
-    ! Now read the events.in (which contains hscale)
-    OPEN(UNIT = uni, FILE = "input/events.in", FORM = "UNFORMATTED", &
-        ACCESS = "STREAM")
-    
-    READ(uni) nEvents, lenEvent, hscale
-    
-    ! Distribute the events among the processes to conserve memory
-    redNEvents = 0
-    DO ii = 1, nEvents
-        IF (rank.NE.MOD(ii - 1, nProc)) CYCLE
-        
-        redNEvents = redNEvents + 1
-    END DO
-    
-    ! Calculate the diffusion coefficient multiplied by pi (3.14)
-    diffCoef = alpha*vt/7*hscale/0.2*1e-3*3.14
-    
-    ! Allocate tEvents and dEvents with the reduced size redNEvents
-    ALLOCATE(tEvents(lenEvent, redNEvents))
-    ALLOCATE(dEvents(lenEvent, redNEvents))
-    ALLOCATE(nothing(lenEvent))
-    
-    ! Read times
-    jj = 1
-    DO ii = 1, nEvents
-        IF (rank.EQ.MOD(ii - 1, nProc)) THEN
-            READ(uni) tEvents(:, jj)
-            jj = jj + 1
-        ELSE
-            READ(uni) nothing
-        END IF
-    END DO
-    
-    ! Read distances
-    jj = 1
-    DO ii = 1, nEvents
-        IF (rank.EQ.MOD(ii - 1, nProc)) THEN
-            READ(uni) dEvents(:, jj)
-            jj = jj + 1
-        ELSE
-            READ(uni) nothing
-        END IF
-    END DO
-    
-    ! Now read the prodFactor
-    READ(uni) lenFactor, nFactor
-    
-    ! If there is only one production factor, then we fill the array with that
-    ! value. We know is only one if lenFactor = nFactor = 1
-    IF ((lenFactor.NE.1).AND.(lenFactor.NE.lenEvent)) THEN
-        PRINT*, "Error! There should be the same number of events"
-        PRINT*, " and production factors!"
-        STOP
-    END IF
-    IF ((nFactor.NE.1).AND.(nFactor.NE.nEvents)) THEN
-        PRINT*, "Error! There should be the same number of events"
-        PRINT*, " and production factors!"
-        STOP
-    END IF
-    IF (lenFactor.EQ.1) THEN
-        READ(uni) valFactor
-    END IF
-    
-    ! Allocate prodFactor with the reduced size redNEvents
-    ALLOCATE(prodFactor(lenEvent, redNEvents))
-    
-    ! Read the information on the prodFactor
-    IF (lenFactor.EQ.1) THEN
-        prodFactor = valFactor
-    ELSE
-        jj = 1
-        DO ii = 1, nEvents
-            IF (rank.EQ.MOD(ii - 1, nProc)) THEN
-                READ(uni) prodFactor(:, jj)
-                jj = jj + 1
-            ELSE
-                READ(uni) nothing
-            END IF
-        END DO
-    END IF
-    
-    CLOSE(UNIT = uni)
-    
     ! Allocate and read tArray, allocate abundArray
     OPEN(UNIT = uni, FILE = "input/tArray.in")
     
     READ(uni, *) nTimes
-    ALLOCATE(tArray(nTimes), abundArray(nTimes, redNEvents))
+    ALLOCATE(tArray(nTimes), abundArray(nTimes))
     READ(uni, *) tArray
     
     CLOSE(UNIT = uni)
     
     ! Open output files. Write the rank to the filename.
     WRITE(sRank, '(I5)') rank
-    OPEN(UNIT = uni, FILE = "output/Output"//TRIM(ADJUSTL(sRank))//".out")
+    OPEN(UNIT = uni2, FILE = "output/Output"//TRIM(ADJUSTL(sRank))//".out")
     
     ! Write temporal array first and leave a space
-    WRITE(uni, *) tArray
-    WRITE(uni, *)
+    WRITE(uni2, *) tArray
+    WRITE(uni2, *)
     
-    ! Do one separate run for each tau
-    DO ii = 1, nTau
-        abundArray = 0.D0
-        WRITE(uni, *) "#", taus(ii)
+    ! Read the events.in (which contains hscale)
+    OPEN(UNIT = uni, FILE = "input/events.in", FORM = "UNFORMATTED", &
+        ACCESS = "STREAM")
+    
+    READ(uni) nEvents, lenEvent, hscale
+    
+    ! Calculate the diffusion coefficient multiplied by pi (3.14)
+    diffCoef = alpha*vt/7*hscale/0.2*1e-3*3.14
+    
+    ! Allocate tEvents and dEvents
+    ALLOCATE(tEvents(lenEvent), dEvents(lenEvent))
+    
+    ! Read times, distances, production factors, and integrate
+    DO ii = 1, nEvents
+        ! For one run, read tEvents and dEvents
+        READ(uni) tEvents
+        READ(uni) dEvents
         
-        ! Calculate
-        kk = 1
-        DO jj = 1, nEvents
-            ! Divide events evenly
-            IF (rank.NE.MOD(jj - 1, nProc)) CYCLE
-            
-            CALL decayingAbund(abundArray(:, kk), tEvents(:, kk), &
-                               dEvents(:, kk), tArray, taus(ii), &
-                               prodFactor(:, kk), diffCoef, hscale)
-            
-            kk = kk + 1
-        END DO
+        ! Read the production factor
+        READ(uni) lenFactor
+        IF (.NOT.ALLOCATED(prodFactor)) THEN
+            ALLOCATE(prodFactor(lenFactor))
+        END IF
+        READ(uni) prodFactor
         
-        ! Write
-        kk = 1
-        DO jj = 1, nEvents
-            ! Divide events evenly
-            IF (rank.NE.MOD(jj - 1, nProc)) CYCLE
+        IF (rank.EQ.MOD(ii - 1, nProc)) THEN
+            ! Integrate
+            WRITE(uni2, *) "#", ii
             
-            WRITE(uni, *) jj, abundArray(:, kk)
-            kk = kk + 1
-        END DO
+            ! Do one separate run for each tau
+            DO jj = 1, nTau
+                abundArray = 0.D0
+                
+                ! Calculate
+                CALL decayingAbund(abundArray, tEvents, dEvents, tArray, &
+                                   taus(jj), prodFactor, diffCoef, hscale)
+                
+                ! Write
+                WRITE(uni2, *) taus(jj), abundArray
+            END DO
+        END IF
     END DO
     
-    CLOSE(uni)
+    CLOSE(UNIT = uni)
+    CLOSE(UNIT = uni2)
     
-    DEALLOCATE(taus, tEvents, dEvents, tArray, abundArray, prodFactor, nothing)
+    ! Clean
+    DEALLOCATE(taus, tEvents, dEvents, tArray, abundArray)
+    IF (ALLOCATED(prodFactor)) DEALLOCATE(prodFactor)
     CALL MPI_FINALIZE(ierror)
 CONTAINS
 
@@ -207,7 +141,7 @@ SUBROUTINE decayingAbund(abundArray, tEvents, dEvents, tArray, tau, &
     DOUBLE PRECISION::prodFactor(:), diffCoef, hscale
     
     ! Local
-    DOUBLE PRECISION::invTau, totSum, factor, dt, r2
+    DOUBLE PRECISION::invTau, factor, dt, r2
     INTEGER::ii, jj, tLen, iiEvent, lenEvent
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF DECLARATIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -240,7 +174,11 @@ SUBROUTINE decayingAbund(abundArray, tEvents, dEvents, tArray, tau, &
             ! Check if the factor is too small
             IF (factor.LT.1.D-100) EXIT
             
-            abundArray(jj) = abundArray(jj) + prodFactor(iiEvent)*factor
+            IF (SIZE(prodFactor).GT.1) THEN
+                abundArray(jj) = abundArray(jj) + prodFactor(iiEvent)*factor
+            ELSE
+                abundArray(jj) = abundArray(jj) + prodFactor(1)*factor
+            END IF
         END DO
     END DO
     
