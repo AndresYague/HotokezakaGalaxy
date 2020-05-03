@@ -94,6 +94,8 @@ def wandermanFunction(r0, totTime):
             return np.exp(-(zz(t, totTime) - 0.9)/0.26)*normConst
         else:
             return np.exp((zz(t, totTime) - 0.9)/0.39)*normConst
+    
+    return rate
 
 def hopiknsFunction(r0, totTime):
     '''
