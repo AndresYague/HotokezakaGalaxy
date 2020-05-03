@@ -80,6 +80,21 @@ def cucciatiFunctionInterpol(r0, totTime, lst0):
     # Give the rate normalized to current rate (r0)
     return rate
 
+def wandermanFunction(r0, totTime):
+    '''
+    Define the change of rate with time according to Wanderman et al. 2015
+    -r0 is the present rate in events/Myr
+    -totTime is the total simulation time in Myr before present
+    '''
+    
+    # Give the rate normalized to current rate (r0)
+    def rate(t):
+        normConst = r0*np.exp(0.9/0.39)
+        if zz(t, totTime) > 0.9:
+            return np.exp(-(zz(t, totTime) - 0.9)/0.26)*normConst
+        else:
+            return np.exp((zz(t, totTime) - 0.9)/0.39)*normConst
+
 def hopiknsFunction(r0, totTime):
     '''
     Define the change of rate with time according to Hopkins et al. 2006
