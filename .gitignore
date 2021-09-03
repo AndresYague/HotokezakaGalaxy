@@ -1,5 +1,5 @@
 # Ignore executable
-HotoCalc
+HotokezakaCalc
 
 # Ignore .in and .out files
 *.in

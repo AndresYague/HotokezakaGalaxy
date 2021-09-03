@@ -1,0 +1,4 @@
+# Example of input for inputHotokezakaGalaxy.in
+
+0.1         alpha       # Mixing length parameter
+7           vt          # ISM turbulent velocity (km/s)

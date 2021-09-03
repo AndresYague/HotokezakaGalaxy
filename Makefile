@@ -31,7 +31,7 @@ endif
 MAKEFILE = Makefile
 
 # Executables.
-EXE = HotoCalc
+EXE = HotokezakaCalc
 
 # All:
 ALL = $(EXE) tags
