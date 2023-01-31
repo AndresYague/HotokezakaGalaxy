@@ -171,8 +171,8 @@ SUBROUTINE decayingAbund(abundArray, tEvents, dEvents, tArray, tau, &
             factor = DEXP(-dEvents(iiEvent)**2/(4*r2) - dt*invTau)
             factor = factor/MIN((4*r2)**1.5, 8*hscale*r2)
 
-            ! Check if the factor is too small
-            IF (factor.LT.1.D-100) EXIT
+            ! Stop calculating if it decayed too much
+            IF ((dt * invTau).GT.100) EXIT
 
             IF (SIZE(prodFactor).GT.1) THEN
                 abundArray(jj) = abundArray(jj) + prodFactor(iiEvent)*factor

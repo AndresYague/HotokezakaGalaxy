@@ -452,7 +452,7 @@ def main():
     step = inputArgs["sampleDt"]
     tArray = np.arange(0, inputArgs["time"] + step, step)
     with open(fileName, "w") as fwrite:
-        fwrite.write(f"{len(tArray)}\n"
+        fwrite.write(f"{len(tArray)}\n")
         fwrite.write(" ".join([str(x) for x in tArray]))
 
 if __name__ == "__main__":
