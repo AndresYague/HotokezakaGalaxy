@@ -1,8 +1,6 @@
 #
 # Makefile
 #
-# snuppat
-#
 
 # Compiler.
 FC = mpifort

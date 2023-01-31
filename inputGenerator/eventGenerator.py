@@ -1,5 +1,65 @@
 import numpy as np
-import os, struct
+import os, struct, sys
+
+def getRate(inputArgs):
+    '''
+    Calculate the rate with the rate function chosen by the user
+    '''
+
+    # Calculate the simulation fractional mass by approximating:
+    # dM = dr*rsun*exp(-rsun/rd)/(rd*rd)
+    rScaleSun = inputArgs["rSun"]/inputArgs["rd"]
+
+    fraction = np.exp(-rScaleSun)*rScaleSun
+    fraction *= inputArgs["width"]/inputArgs["rd"]
+
+    # Error message
+    errMsg = "Unknown rate function"
+
+    # Get the rate
+    r0 = inputArgs["r0"] * fraction
+    if inputArgs["rateFunct"] == "linear":
+        rate = linearFunction(r0, 5*r0, inputArgs["time"])
+
+    elif inputArgs["rateFunct"] == "constant":
+        rate = linearFunction(r0, r0, inputArgs["time"])
+
+    elif inputArgs["rateFunct"] == "hopkins":
+        rate = hopiknsFunction(r0, inputArgs["time"])
+
+    elif inputArgs["rateFunct"] == "wanderman":
+        rate = wandermanFunction(r0, inputArgs["time"])
+
+    elif inputArgs["rateFunct"] == "madau":
+        rate = madauFunction(r0, inputArgs["time"])
+
+    elif "cucciati" in inputArgs["rateFunct"]:
+
+        # Tabulated values of Cucciati rate function
+        lst = [[0.0, 0.2, -1.65],
+               [0.2, 0.4, -1.44],
+               [0.4, 0.6, -1.34],
+               [0.6, 0.8, -1.15],
+               [0.8, 1.0, -0.90],
+               [1.0, 1.2, -0.85],
+               [1.2, 1.7, -0.85],
+               [1.7, 2.5, -0.62],
+               [2.5, 3.5, -0.86],
+               [3.5, 4.5, -1.37]]
+
+        if "Interpol" in inputArgs["rateFunct"]:
+            rate = cucciatiFunctionInterpol(r0, inputArgs["time"], lst)
+        elif "Polyfit" in inputArgs["rateFunct"]:
+            rate = cucciatiFunctionPolyfit(r0, inputArgs["time"], lst)
+        elif "Step" in inputArgs["rateFunct"]:
+            rate = cucciatiFunctionStep(r0, inputArgs["time"], lst)
+        else:
+            raise Exception(errMsg)
+
+    else:
+        raise Exception(errMsg)
+
+    return rate
 
 def zz(t, totTime):
     '''
@@ -221,7 +281,7 @@ class EventsObj():
             # Update totRuns
             totRuns += tempRuns
             prctg = totRuns/nRuns*100
-            print("Done {:.0f}%".format(prctg))
+            print(f"Done {prctg:.0f}%")
 
         fwriteTime.close()
         fwriteDist.close()
@@ -265,11 +325,11 @@ class EventsObj():
 
         # Write to temporal files
         for timeArr in times:
-            fwriteTime.write(" ".join([str(x) for x in timeArr]))
+            fwriteTime.write(" ".join((str(x) for x in timeArr)))
             fwriteTime.write("\n")
 
         for distArr in distances:
-            fwriteDist.write(" ".join([str(x) for x in distArr]))
+            fwriteDist.write(" ".join((str(x) for x in distArr)))
             fwriteDist.write("\n")
 
 def main():
@@ -279,10 +339,10 @@ def main():
     inFile = "inputEventGenerator.in"
     inExample = "inputEventGenerator.example"
     if not os.path.isfile(inFile):
-        s = 'File "{}" not found, '.format(inFile)
-        s += 'please use "{}" as a template'.format(inExample)
-        print(s)
-        return 1
+        s = f'File "{inFile}" not found, '
+        s += f'please use "{inExample}" as a template'
+
+        sys.exit(s)
 
     # Read input file
     inputArgs = {}
@@ -307,87 +367,41 @@ def main():
 
     # Check at least correct number of arguments
     if len(inputArgs) < 8:
-        s = 'File "{}" has an incorrect number of entries, '.format(inFile)
-        s += 'please use "{}" as a template'.format(inExample)
-        print(s)
-        return 1
+        s = f'File "{inFile}" has an incorrect number of entries, '
+        s += f'please use "{inExample}" as a template'
+
+        sys.exit(s)
 
     # Calculate the solar circumference
     circumf = inputArgs["rSun"]*2*np.pi
 
-    # Calculate the simulation fractional mass by approximating:
-    # dM = dr*rsun*exp(-rsun/rd)/(rd*rd)
-    rScaleSun = inputArgs["rSun"]/inputArgs["rd"]
-
-    fraction = np.exp(-rScaleSun)*rScaleSun
-    fraction *= inputArgs["width"]/inputArgs["rd"]
-
     # Get the rate
-    r0 = inputArgs["r0"]*fraction
-    if inputArgs["rateFunct"] == "linear":
-        rate = linearFunction(r0, 5*r0, inputArgs["time"])
-
-    elif inputArgs["rateFunct"] == "constant":
-        rate = linearFunction(r0, r0, inputArgs["time"])
-
-    elif inputArgs["rateFunct"] == "hopkins":
-        rate = hopiknsFunction(r0, inputArgs["time"])
-
-    elif inputArgs["rateFunct"] == "wanderman":
-        rate = wandermanFunction(r0, inputArgs["time"])
-
-    elif inputArgs["rateFunct"] == "madau":
-        rate = madauFunction(r0, inputArgs["time"])
-
-    elif "cucciati" in inputArgs["rateFunct"]:
-
-        # Tabulated values of Cucciati rate function
-        lst = [[0.0, 0.2, -1.65],
-               [0.2, 0.4, -1.44],
-               [0.4, 0.6, -1.34],
-               [0.6, 0.8, -1.15],
-               [0.8, 1.0, -0.90],
-               [1.0, 1.2, -0.85],
-               [1.2, 1.7, -0.85],
-               [1.7, 2.5, -0.62],
-               [2.5, 3.5, -0.86],
-               [3.5, 4.5, -1.37]]
-
-        if "Interpol" in inputArgs["rateFunct"]:
-            rate = cucciatiFunctionInterpol(r0, inputArgs["time"], lst)
-        elif "Polyfit" in inputArgs["rateFunct"]:
-            rate = cucciatiFunctionPolyfit(r0, inputArgs["time"], lst)
-        elif "Step" in inputArgs["rateFunct"]:
-            rate = cucciatiFunctionStep(r0, inputArgs["time"], lst)
-        else:
-            print("Unknown rate function")
-            return 1
-
-    else:
-        print("Unknown rate function")
-        return 1
+    rate = getRate(inputArgs)
 
     # Set number of runs
     nRuns = int(inputArgs["nRuns"])
 
     # Initialize simulation
-    events = EventsObj(hscale = inputArgs["hscale"],
-                       circumf = circumf,
-                       width = inputArgs["width"],
-                       time = inputArgs["time"])
+    events = EventsObj(hscale=inputArgs["hscale"],
+                       circumf=circumf,
+                       width=inputArgs["width"],
+                       time=inputArgs["time"])
     sizeRun, timesFile, distFile = events.getEvents(rate, nRuns)
 
     # Create filename
     fileName = "../input/Run"
 
     # Sort keys so they always go in same order
-    sortedKeys = [key for key in inputArgs]; sortedKeys.sort()
+    sortedKeys = [key for key in inputArgs]
+    sortedKeys.sort()
+
+    # Remove the sampleDt from the fileName
     sortedKeys.pop(sortedKeys.index("sampleDt"))
     try:
-        fileName += "".join(["_{}_{:.2f}".format(key, inputArgs[key])
+        fileName += "".join([f"_{key}_{inputArgs[key]:.2f}"
                             for key in sortedKeys])
     except ValueError:
-        fileName += "".join(["_{}_{}".format(key, inputArgs[key])
+        fileName += "".join([f"_{key}_{inputArgs[key]}"
                             for key in sortedKeys])
     except:
         raise
@@ -415,9 +429,16 @@ def main():
                     fmt = "d"*len(vals)
                     fwrite.write(struct.pack(fmt, *vals))
 
+                    # TODO
                     # Write the production factors
-                    fwrite.write(struct.pack("i", 1))
-                    fwrite.write(struct.pack("d", 1.0))
+                    #fwrite.write(struct.pack("i", 1))
+                    #fwrite.write(struct.pack("d", 1.0))
+
+                    # For variable production factor
+                    #fwrite.write(struct.pack("i", len(vals)))
+                    #fmt = "d"*len(vals)
+                    #vals = [np.random.choice([10, 100]) for x in vals]
+                    #fwrite.write(struct.pack(fmt, *vals))
 
     # Remove the temporal files
     os.remove(timesFile)
@@ -425,14 +446,13 @@ def main():
 
     # Filename for the tArray.in thing
     fileName = "../input/tArray_sampleDt"
-    fileName += "_{}_time_{}".format(inputArgs["sampleDt"], inputArgs["time"])
-    fileName += ".in"
+    fileName += f"_{inputArgs['sampleDt']}_time_{inputArgs['time']}.in"
 
     # Create a suitable tArray.in for this simulation
     step = inputArgs["sampleDt"]
     tArray = np.arange(0, inputArgs["time"] + step, step)
     with open(fileName, "w") as fwrite:
-        fwrite.write("{}\n".format(len(tArray)))
+        fwrite.write(f"{len(tArray)}\n"
         fwrite.write(" ".join([str(x) for x in tArray]))
 
 if __name__ == "__main__":
